@@ -30,7 +30,7 @@ namespace Asv.Mavlink.V2.{{ Namespace }}
 
     public static class {{ Namespace }}Helper
     {
-        public static void Register{{ Namespace }}Dialect(this IPacketDecoder<IPacket<IPayload>,IPayload> src)
+        public static void Register{{ Namespace }}Dialect(this IPacketDecoder<IPacketV2<IPayload>> src)
         {
             {%- for msg in Messages -%}
             src.Register(()=>new {{ msg.CamelCaseName }}Packet());
@@ -78,13 +78,16 @@ namespace Asv.Mavlink.V2.{{ Namespace }}
     /// </summary>
     public class {{ msg.CamelCaseName }}Packet: PacketV2<{{ msg.CamelCaseName }}Payload>
     {
+	public const int PacketMessageId = {{ msg.Id }};
+        public override int MessageId => PacketMessageId;
         public override byte CrcEtra => {{ msg.CrcExtra }};
-        public override int MessageId => {{ msg.Id }};
+
         public override {{ msg.CamelCaseName }}Payload Payload { get; } = new {{ msg.CamelCaseName }}Payload();
 
+        public override string Name => "{{ msg.Name }}";
         public override string ToString()
         {
-            var name = "{{ msg.Name }}".PadLeft(30);
+            var name = "{{ msg.Name }}".PadRight(30);
 
             return $"{name}(" +
                    $"INC:{Convert.ToString(IncompatFlags, 2).PadLeft(8, '0')}|" +
@@ -102,14 +105,26 @@ namespace Asv.Mavlink.V2.{{ Namespace }}
     /// </summary>
     public class {{ msg.CamelCaseName }}Payload : IPayload
     {
-        public byte ByteSize => {{ msg.PayloadByteSize }};
+        public byte MaxByteSize => {{ msg.PayloadByteSize }};
 
-        public int Deserialize(byte[] buffer, int index)
+        public void Deserialize(byte[] buffer, int offset, int payloadSize)
         {
+            var index = offset;
+            var endIndex = offset + payloadSize;
+            var arraySize = 0;
 {%- for field in msg.Fields -%}
     {%- if field.IsEnum -%}
         {%- if field.IsArray -%}
-            for(var i=0;i<{{ field.ArrayLength }};i++)
+            {%- if field.IsTheLargestArrayInMessage -%}
+            arraySize = /*ArrayLength*/{{ field.ArrayLength }} - (int)((MaxByteSize - payloadSize - /*ExtendedFieldsLength*/{{ msg.ExtendedFieldsLength }})//*FieldTypeByteSize*/{{ field.FieldTypeByteSize }});
+            for(var i=arraySize;i<{{ field.ArrayLength }};i++)
+            {
+                {{ field.CamelCaseName }}[i] = ({{ field.EnumCamelCaseName }})default({{ field.Type }})
+            }
+            {%- else -%}
+            arraySize = {{ field.ArrayLength }};
+            {%- endif -%}
+            for(var i=0;i<arraySize;i++)
             {
                 {%- case field.Type -%}
                 {%- when 'sbyte' or 'byte'-%}
@@ -128,6 +143,7 @@ namespace Asv.Mavlink.V2.{{ Namespace }}
                 {{ field.CamelCaseName }}[i] = ({{ field.EnumCamelCaseName }})BitConverter.ToUInt64(buffer,index);index+=8;
                 {%- endcase -%}
             }
+
         {%- else -%}
             {%- case field.Type -%}
             {%- when 'sbyte' or 'byte' -%}
@@ -148,11 +164,20 @@ namespace Asv.Mavlink.V2.{{ Namespace }}
         {%- endif -%}
     {%- else -%}
         {%- if field.IsArray -%}
+            {%- if field.IsTheLargestArrayInMessage -%}
+            arraySize = /*ArrayLength*/{{ field.ArrayLength }} - (int)((MaxByteSize - payloadSize - /*ExtendedFieldsLength*/{{ msg.ExtendedFieldsLength }})/{{ field.FieldTypeByteSize }} /*FieldTypeByteSize*/);
+            for(var i=arraySize;i<{{ field.ArrayLength }};i++)
+            {
+                {{ field.CamelCaseName }}[i] = default({{ field.Type }});
+            }
+            {%- else -%}
+            arraySize = {{ field.ArrayLength }};
+            {%- endif -%}
             {%- if field.Type == 'char' -%}
-                Encoding.ASCII.GetChars(buffer, index,{{ field.ArrayLength }},{{ field.CamelCaseName }},0);
+                Encoding.ASCII.GetChars(buffer, index,arraySize,{{ field.CamelCaseName }},0);
                 index+={{ field.ArrayLength }};
             {%- else -%}
-            for(var i=0;i<{{ field.ArrayLength }};i++)
+            for(var i=0;i<arraySize;i++)
             {
                 {%- case field.Type -%}
                 {%- when 'sbyte' or 'byte' -%}
@@ -204,8 +229,8 @@ namespace Asv.Mavlink.V2.{{ Namespace }}
             {%- endif -%}
         {%- endif -%}
     {%- endif -%}
+        // extended
 {%- endfor -%}
-            return ByteSize;
         }
 
         public int Serialize(byte[] buffer, int index)
@@ -215,28 +240,47 @@ namespace Asv.Mavlink.V2.{{ Namespace }}
         {%- if field.IsArray -%}
             for(var i=0;i<{{ field.ArrayLength }};i++)
             {
+                {%- case field.Type -%}
+                {%- when 'char' or 'double' or 'float'-%}
+                ERROR => ENUM as 'char' or 'double' or 'float' ???????
+                {%- when 'sbyte' or 'byte' -%}
+                buffer[index] = (byte){{ field.CamelCaseName }}[i];index+={{ field.FieldTypeByteSize }};
+                {%- when 'ulong' or 'long' or 'uint' or 'int' or 'ushort' or 'short' -%}
                 BitConverter.GetBytes(({{ field.Type }}){{ field.CamelCaseName }}[i]).CopyTo(buffer, index);index+={{ field.FieldTypeByteSize }};
+                {%- endcase -%}
             }
         {%- else -%}
+            {%- case field.Type -%}
+            {%- when 'char' or 'double' or 'float'-%}
+            ERROR => ENUM as 'char' or 'double' or 'float' ???????
+            {%- when 'sbyte' or 'byte' -%}
+            buffer[index] = (byte){{ field.CamelCaseName }};index+={{ field.FieldTypeByteSize }};
+            {%- when 'ulong' or 'long' or 'uint' or 'int' or 'ushort' or 'short'  -%}
             BitConverter.GetBytes(({{ field.Type }}){{ field.CamelCaseName }}).CopyTo(buffer, index);index+={{ field.FieldTypeByteSize }};
+            {%- endcase -%}
         {%- endif -%}
     {%- else -%}
         {%- if field.IsArray -%}
-            {%- if field.Type == 'char' -%}
-            Encoding.ASCII.GetBytes({{ field.CamelCaseName }},0,{{ field.ArrayLength }},buffer,index);
-            index+={{ field.ArrayLength }};
-            {%- else -%}
+            {%- case field.Type -%}
+            {%- when 'char' -%}
+            Encoding.ASCII.GetBytes({{ field.CamelCaseName }},0,{{ field.ArrayLength }},buffer,index);index+={{ field.ArrayLength }};
+            {%- when 'sbyte' or 'byte' -%}
+            for(var i=0;i<{{ field.ArrayLength }};i++)
+            {
+                buffer[index] = (byte){{ field.CamelCaseName }}[i];index+={{ field.FieldTypeByteSize }};
+            }
+            {%- when 'double' or 'float' or 'ulong' or 'long' or 'uint' or 'int' or 'ushort' or 'short'  -%}
             for(var i=0;i<{{ field.ArrayLength }};i++)
             {
                 BitConverter.GetBytes({{ field.CamelCaseName }}[i]).CopyTo(buffer, index);index+={{ field.FieldTypeByteSize }};
             }
-            {%- endif -%}
+            {%- endcase -%}
         {%- else -%}
             BitConverter.GetBytes({{ field.CamelCaseName }}).CopyTo(buffer, index);index+={{ field.FieldTypeByteSize }};
         {%- endif -%}
     {%- endif -%}
 {%- endfor -%}
-            return ByteSize;
+            return MaxByteSize;
         }
 
     {%- for field in msg.Fields -%}
@@ -244,8 +288,7 @@ namespace Asv.Mavlink.V2.{{ Namespace }}
         {%- for line in field.Desc -%}
         /// {{ line }}
         {%- endfor -%}
-        /// {{ field.Units }}
-        /// {{ field.Name }}
+        /// OriginName: {{ field.Name }}, Units: {{ field.Units }}, IsExtended: {{ field.IsExtended }}
         /// </summary>
     {%- if field.IsEnum -%}
         {%- if field.IsArray -%}
