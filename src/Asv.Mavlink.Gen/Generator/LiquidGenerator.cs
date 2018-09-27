@@ -65,6 +65,7 @@ namespace Asv.Mavlink.Gen
                                                                                                 Name = field.Name,
                                                                                                 CamelCaseName = NameConverter(field.Name),
                                                                                                 Units = field.Units,
+                                                                                                IsExtended = field.IsExtended,
                                                                                                 FieldTypeByteSize = field.FieldTypeByteSize,
                                                                                                 ArrayLength = field.ArrayLength,
                                                                                                 Desc = field.Desc,
