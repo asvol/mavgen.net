@@ -14,5 +14,6 @@ namespace Asv.Mavlink.Gen
         public bool IsExtended { get; set; }
         public string TypeName { get; set; }
         public string Enum { get; set; }
+        public bool IsTheLargestArrayInMessage { get; set; }
     }
 }

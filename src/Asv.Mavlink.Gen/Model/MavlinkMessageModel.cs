@@ -23,7 +23,7 @@ namespace Asv.Mavlink.Gen
         {
             return src.Fields.Concat(src.ExtendedFields);
         }
-
+        
         public static void ReorderFieldsAndClacCrc(this MavlinkMessageModel src)
         {
             src.Fields = src.Fields.OrderByDescending(_ => _.FieldTypeByteSize).ToList();
@@ -31,6 +31,16 @@ namespace Asv.Mavlink.Gen
             var crc = X25Crc.Accumulate($"{src.Name} ", X25Crc.CrcSeed);
             crc = src.Fields.Aggregate(crc, (acc, field) => field.CalculateCrc(acc));
             src.CrcExtra = (byte)((crc & 0xFF) ^ (crc >> 8));
+        }
+
+        /// <summary>
+        /// It's for Variable Length Arrays calculation
+        /// </summary>
+        /// <param name="src"></param>
+        public static void CalculateLargestArray(this MavlinkMessageModel src)
+        {
+            var largestArray = src.Fields.Where(_ => _.IsArray).OrderByDescending(_ => _.FieldByteSize).FirstOrDefault();
+            if (largestArray != null) largestArray.IsTheLargestArrayInMessage = true;
         }
 
         public static ushort CalculateCrc(this MessageFieldModel field, ushort crc)

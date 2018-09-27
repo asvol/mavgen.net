@@ -86,8 +86,7 @@ namespace Asv.Mavlink.Gen
             } while (rdr.Depth >= depth);
 
             messageItem.ReorderFieldsAndClacCrc();
-            
-
+            messageItem.CalculateLargestArray();
         }
 
         private static string[] ConvertDesc(string desc)
