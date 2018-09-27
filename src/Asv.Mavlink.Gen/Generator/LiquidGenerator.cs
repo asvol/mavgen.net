@@ -58,6 +58,7 @@ namespace Asv.Mavlink.Gen
                                                              Id = msg.Id,
                                                              CrcExtra = msg.CrcExtra,
                                                              PayloadByteSize = msg.GetAllFields().Sum(_=>_.FieldByteSize),
+                                                             ExtendedFieldsLength = msg.ExtendedFields.Sum(_=>_.FieldByteSize),
                                                              Fields = msg.GetAllFields().Select(field =>
                                                                                             new
                                                                                             {
