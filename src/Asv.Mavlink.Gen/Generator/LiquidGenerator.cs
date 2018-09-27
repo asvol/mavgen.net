@@ -68,7 +68,7 @@ namespace Asv.Mavlink.Gen
                                                                                                 ArrayLength = field.ArrayLength,
                                                                                                 Desc = field.Desc,
                                                                                                 IsArray = field.IsArray,
-                                                                                                IsTheLargestArrayInAMessage = field.IsTheLargestArrayInMessage,
+                                                                                                IsTheLargestArrayInMessage = field.IsTheLargestArrayInMessage,
                                                                                                 IsEnum = field.Enum != null,
                                                                                                 Type = ConvertTypeName(field.Type),
                                                                                                 EnumCamelCaseName = NameConverter(field.Enum),
