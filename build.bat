@@ -4,15 +4,11 @@ chcp 65001
 SET BASH_PATH=%SYSTEMDRIVE%\Users\%USERNAME%\.babun\cygwin\bin\
 SET PATH=%PATH%;%BASH_PATH%
 
-SET MSBBUILD="C:\Program Files (x86)\MSBuild\14.0\Bin\msbuild"
+SET MSBBUILD="C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\MSBuild\Current\Bin\msbuild.exe"
 
 
 
 whoami
-
-git submodule update --init --recursive
-
-"tools/nuget.exe" config -set http_proxy=""
 
 "tools/nuget.exe" restore -verbosity quiet src
 
